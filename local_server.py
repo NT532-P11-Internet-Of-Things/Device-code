@@ -15,7 +15,7 @@ def fetch_data():
     lanes_ref = db.reference('traffic_system/intersections/main_intersection/lanes')
     lanes_data = lanes_ref.get()
     try:
-        response = requests.post('http://localhost:5000', json=lanes_data)
+        response = requests.post('http://localhost:80', json=lanes_data)
         response.raise_for_status()
         print(f"Posted data to localhost: {response.status_code}")
     except requests.exceptions.RequestException as e:

@@ -74,7 +74,7 @@ void loop() {
   server.handleClient();
 
   unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= interval) {
+  if (currentMillis - previousMillis >= interval || immediateHandle) {
     previousMillis = currentMillis;
     handleTrafficLight();
   }
