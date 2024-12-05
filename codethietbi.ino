@@ -6,17 +6,44 @@
 #define WIFI_SSID "KALYS 4342"
 #define WIFI_PASSWORD "87654321"
 
-// Thông tin Firebase
-#define FIREBASE_HOST "smart-traffic-light-03-default-rtdb.asia-southeast1.firebasedatabase.app"
-#define FIREBASE_AUTH "YOUR_FIREBASE_AUTH"
-
 // Pin cho dải WS2812
 #define LED_PIN D1
 #define NUM_LEDS 12
+ESP8266WebServer server(80);
 
 Adafruit_NeoPixel strip(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 
-FirebaseData firebaseData;
+unsigned long previousMillis = 0;
+const long interval = 1000;  // Interval for traffic light handling
+bool immediateHandle = false;
+
+void handlePost() {
+  if (server.hasArg("plain") == false) {
+    server.send(400, "text/plain", "Body not received");
+    return;
+  }
+
+  String body = server.arg("plain");
+  Serial.println("Received JSON data:");
+  Serial.println(body);
+
+  // Parse JSON data
+  StaticJsonDocument<1024> doc;
+  DeserializationError error = deserializeJson(doc, body);
+  if (error) {
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(error.f_str());
+    server.send(400, "text/plain", "Invalid JSON");
+    return;
+  }
+
+  // TODO: Update greenTime, isGreen, remainingTime
+  serializeJsonPretty(doc, Serial);
+
+  server.send(200, "application/json", "{\"status\":\"received\"}");
+
+  immediateHandle = true;
+}
 
 // Các biến toàn cục
 int greenTime[5] = {0, 10, 10, 10, 10}; // Thời gian đèn xanh (Lane 1 đến 4)
@@ -33,39 +60,45 @@ void setup() {
   }
   Serial.println("WiFi connected");
 
-  Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
-  Firebase.reconnectWiFi(true);
+  server.on("/postjson", HTTP_POST, handlePost);
+  server.begin();
+  Serial.println("Server started");
 
   // Cài đặt WS2812
   strip.begin();
   strip.show(); // Tắt tất cả đèn
-  syncWithFirebase(); // Đồng bộ ngay khi khởi động
 }
 
 // Vòng lặp chính
 void loop() {
-  handleTrafficLight();
-}
+  server.handleClient();
 
-void syncWithFirebase() {
-  for (int lane = 1; lane <= 4; lane++) {
-    String path = "/traffic_system/intersections/main_intersection/lanes/" + String(lane);
-    if (Firebase.getJSON(firebaseData, path)) {
-      String jsonStr = firebaseData.jsonString();
-      FirebaseJson json;
-      json.setJsonData(jsonStr);
-
-      // Lấy giá trị từ Firebase
-      json.get(greenTime[lane], "green_time");
-      json.get(isGreen[lane], "is_green");
-      json.get(remainingTime[lane], "remaining_time");
-
-      Serial.printf("Lane %d synced with Firebase\n", lane);
-    } else {
-      Serial.printf("Failed to sync Lane %d with Firebase\n", lane);
-    }
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    handleTrafficLight();
   }
 }
+
+// void syncWithFirebase() {
+//   for (int lane = 1; lane <= 4; lane++) {
+//     String path = "/traffic_system/intersections/main_intersection/lanes/" + String(lane);
+//     if (Firebase.getJSON(firebaseData, path)) {
+//       String jsonStr = firebaseData.jsonString();
+//       FirebaseJson json;
+//       json.setJsonData(jsonStr);
+
+//       // Lấy giá trị từ Firebase
+//       json.get(greenTime[lane], "green_time");
+//       json.get(isGreen[lane], "is_green");
+//       json.get(remainingTime[lane], "remaining_time");
+
+//       Serial.printf("Lane %d synced with Firebase\n", lane);
+//     } else {
+//       Serial.printf("Failed to sync Lane %d with Firebase\n", lane);
+//     }
+//   }
+// }
 
 void handleTrafficLight() {
   for (int lane = 1; lane <= 4; lane++) {
@@ -99,7 +132,6 @@ void handleTrafficLight() {
     }
     syncPairLane(lane); // Đồng bộ với lane đối diện
   }
-  delay(1000);
 }
 
 void syncPairLane(int lane) {
@@ -114,24 +146,24 @@ void syncPairLane(int lane) {
   }
 }
 
-void updateFirebaseState(int lane) {
-  FirebaseJson json;
-  json.set("is_green", isGreen[lane]);
-  json.set("remaining_time", remainingTime[lane]);
+// void updateFirebaseState(int lane) {
+//   FirebaseJson json;
+//   json.set("is_green", isGreen[lane]);
+//   json.set("remaining_time", remainingTime[lane]);
 
-  String path = "/traffic_system/intersections/main_intersection/lanes/" + String(lane);
-  if (Firebase.updateNode(firebaseData, path, json)) {
-    Serial.printf("Lane %d updated Firebase state\n", lane);
-  } else {
-    Serial.printf("Failed to update Firebase state for Lane %d\n", lane);
-  }
-}
+//   String path = "/traffic_system/intersections/main_intersection/lanes/" + String(lane);
+//   if (Firebase.updateNode(firebaseData, path, json)) {
+//     Serial.printf("Lane %d updated Firebase state\n", lane);
+//   } else {
+//     Serial.printf("Failed to update Firebase state for Lane %d\n", lane);
+//   }
+// }
 
-String getLightColor(bool isGreen, int remainingTime, int greenTime) {
-  if (isGreen) return "GREEN";
-  if (remainingTime > greenTime) return "YELLOW";
-  return "RED";
-}
+// String getLightColor(bool isGreen, int remainingTime, int greenTime) {
+//   if (isGreen) return "GREEN";
+//   if (remainingTime > greenTime) return "YELLOW";
+//   return "RED";
+// }
 
 void setTrafficLight(int lane, String color) {
   int offset = (lane - 1) * 3;
