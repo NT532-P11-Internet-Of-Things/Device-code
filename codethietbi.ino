@@ -39,7 +39,7 @@ void getColorValues(const char *color, int &r, int &g, int &b)
   }
   else if (strcmp(color, "Yellow") == 0)
   {
-    r = 255;
+    r = 100;
     g = 255;
     b = 0;
   }
