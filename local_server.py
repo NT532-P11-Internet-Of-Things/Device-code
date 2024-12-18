@@ -89,7 +89,7 @@ def handle_change(light_1, light_2):
     }
     print(f"Posting data to localhost: {data}")
     try:
-        response = requests.post('http://192.168.55.150:5000/postjson', json=data)
+        response = requests.post('http://192.168.137.24:5000/postjson', json=data)
         response.raise_for_status()
         print(f"Posted data to localhost: {response.status_code}\n///////////////////////////////////////")
     except requests.exceptions.RequestException as e:
@@ -274,6 +274,7 @@ def listenerGreenTimmer2(event):
         set_timer2_green(green_time_2)
 
 def sync_listener(event):
+    print(f"123123 Sync with web: {event.data}")
     state.set_is_sync_with_web(event.data)
     if event.data:
         print("Switching to local server 2")
@@ -282,11 +283,18 @@ def sync_listener(event):
         print("Switching to local server 1")
         start_listeners_local_server_1()
 
-def main():
+def run_sync_service():
     sync_ref = db.reference('traffic_system/intersections/main_intersection/syncWithRealDevice')
     sync_ref.listen(sync_listener)
     print("Listening for syncWithRealDevice changes. Press Ctrl+C to stop.")
 
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Server stopping...")
+
+def main_2():
     # Start the countdown timer in a separate thread
     print("Starting countdown timer...")
     threading.Thread(target=countdown_timer).start()
@@ -296,6 +304,8 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         print("Server stopping...")
+    
 
 if __name__ == "__main__":
-    main()
+    threading.Thread(target=run_sync_service).start()
+    threading.Thread(target=main_2).start()

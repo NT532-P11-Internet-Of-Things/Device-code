@@ -18,8 +18,8 @@ Adafruit_NeoPixel strip4(NUM_LEDS, STRIP4_PIN, NEO_GRB + NEO_KHZ800);
 String currentColor1 = "Green";
 String currentColor2 = "Green";
 
-const char *ssid = "PX";
-const char *password = "12345678";
+const char *ssid = "UiTiOt-E3.1";
+const char *password = "UiTiOtAP";
 
 ESP8266WebServer server(5000);
 
@@ -177,6 +177,10 @@ void setup()
   strip2.begin();
   strip3.begin();
   strip4.begin();
+  strip1.setBrightness(50);
+  strip2.setBrightness(50);
+  strip3.setBrightness(50);
+  strip4.setBrightness(50);
   strip1.show(); 
   strip2.show();
   strip3.show();
